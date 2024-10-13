@@ -31,6 +31,7 @@ async def attach_link(event):
 
 @client.on(events.NewMessage(incoming=True)) 
 async def handle_message(event: events.NewMessage.Event):
+    logger.info(event)
     """Maneja diferentes tipos de mensajes."""
     if event.message.message and any(map(lambda word: word in event.message.message.lower(), ['/start', '/toggle_transcription', '/attach_link'])):
         return
@@ -43,7 +44,7 @@ async def handle_message(event: events.NewMessage.Event):
             await talk(event)
 
         else:
-            await event.respond("Recibí algo interesante de tu parte. 😉  Aún no puedo manejar este tipo de contenido, ¡pero dame tiempo!")
+            await event.respond("Aún no puedo manejar este tipo de contenido, ¡pero dame tiempo!")
 
     except requests.exceptions.RequestException as e:
         logging.error(f"Error al comunicar con la API: {e}")
