@@ -60,10 +60,10 @@ async def send_content(event: events.NewMessage.Event):
             if isinstance(document, types.DocumentAttributeFilename):
                 file_name = document.file_name
                 try:
-                    file_path: str = await client.download_media(event.message, f"data/{file_name}")
+                    file_path: str = await client.download_media(event.message, f"data/{file_name}") # type: ignore
                     content_type, _ = mimetypes.guess_type(file_path)
                     if not content_type:
-                        content_type = 'application/octet-stream'  # Default MIME type
+                        content_type = 'application/octet-stream'
                     files.append(('files', (file_name, open(file_path, 'rb'), content_type)))
                 except Exception as e:
                     logging.error(f"Error downloading media: {e}")
@@ -72,10 +72,10 @@ async def send_content(event: events.NewMessage.Event):
             elif isinstance(document, types.DocumentAttributeAudio):
                 file_name = f"{secrets.token_hex(8)}.ogg"
                 try:
-                    file_path: str = await client.download_media(event.message, f"data/{file_name}")
+                    file_path: str = await client.download_media(event.message, f"data/{file_name}") # type: ignore
                     content_type, _ = mimetypes.guess_type(file_path)
                     if not content_type:
-                        content_type = 'application/octet-stream'  # Default MIME type
+                        content_type = 'application/octet-stream'
                     files.append(('files', (file_name, open(file_path, 'rb'), content_type)))
                     event.message.message = "User sent an audio file. Your purpose is to reply to him."
                 except Exception as e:
@@ -125,8 +125,8 @@ async def talk(event: events.NewMessage.Event):
 
 async def main():
     """Inicia el bot."""
-    await client.start(bot_token=BOT_TOKEN)
-    await client.run_until_disconnected()
+    await client.start(bot_token=BOT_TOKEN) # type: ignore
+    await client.run_until_disconnected()   # type: ignore
 
 if __name__ == '__main__':
     asyncio.run(main())
