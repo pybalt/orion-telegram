@@ -2,7 +2,7 @@ from telethon import TelegramClient, events, types
 import requests, asyncio, logging, requests_toolbelt, os, secrets, mimetypes, dotenv
 dotenv.load_dotenv()
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
+                    level=logging.INFO, encoding='utf-8')
 logger = logging.getLogger(__name__)
 API_ID = int(os.getenv("API_ID", 0))
 API_HASH = os.getenv("API_HASH", "")
