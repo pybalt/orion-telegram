@@ -50,6 +50,13 @@ async def handle_message(event: events.NewMessage.Event):
         logging.error(f"Error al comunicar con la API: {e}")
         await event.respond("Lo siento, hubo un error al procesar tu solicitud. Por favor, inténtalo de nuevo más tarde.")
 
+async def handle_file(name:str, list_of_files: list):
+    file_path: str = await client.download_media(event.message, f"data/{name}") # type: ignore
+    content_type, _ = mimetypes.guess_type(file_path)
+    if not content_type:
+        content_type = 'application/octet-stream'
+    list_of_files.append(('files', (name, open(file_path, 'rb'), content_type)))
+
 async def send_content(event: events.NewMessage.Event):
     """Sends content (files) to the API."""
     user_id = str(event.message.sender_id)
@@ -57,30 +64,17 @@ async def send_content(event: events.NewMessage.Event):
 
     if event.message.media:
         for document in event.message.media.document.attributes:
-            if isinstance(document, types.DocumentAttributeFilename):
-                file_name = document.file_name
-                try:
-                    file_path: str = await client.download_media(event.message, f"data/{file_name}") # type: ignore
-                    content_type, _ = mimetypes.guess_type(file_path)
-                    if not content_type:
-                        content_type = 'application/octet-stream'
-                    files.append(('files', (file_name, open(file_path, 'rb'), content_type)))
-                except Exception as e:
-                    logging.error(f"Error downloading media: {e}")
-                    await event.respond("Sorry, there was an error downloading the file.")
-                    return
-            elif isinstance(document, types.DocumentAttributeAudio):
-                file_name = f"{secrets.token_hex(8)}.ogg"
-                try:
-                    file_path: str = await client.download_media(event.message, f"data/{file_name}") # type: ignore
-                    content_type, _ = mimetypes.guess_type(file_path)
-                    if not content_type:
-                        content_type = 'application/octet-stream'
-                    files.append(('files', (file_name, open(file_path, 'rb'), content_type)))
+            try:
+                if isinstance(document, types.DocumentAttributeFilename):
+                    file_name = document.file_name
+                elif isinstance(document, types.DocumentAttributeAudio):
+                    file_name = f"{secrets.token_hex(8)}.ogg"
                     event.message.message = "User sent an audio file. Your purpose is to reply to him."
-                except Exception as e:
-                    logging.error(f"Error downloading media: {e}")
-                    await event.respond("Sorry, there was an error downloading the file.")
+
+                await handle_file(file_name, files)
+            except Exception as e:
+                logging.error(f"Error downloading media: {e}")
+                await event.respond("Sorry, there was an error downloading the file.")
 
     params = {
         'text': event.message.message,
