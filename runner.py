@@ -31,12 +31,10 @@ async def attach_link(event):
 
 @client.on(events.NewMessage(incoming=True)) 
 async def handle_message(event: events.NewMessage.Event):
-    logger.info(event)
     """Maneja diferentes tipos de mensajes."""
     if event.message.message and any(map(lambda word: word in event.message.message.lower(), ['/start', '/toggle_transcription', '/attach_link'])):
         return
     try:
-        logger.debug(event)
         if any(map(lambda type: isinstance(event.media, type), [types.MessageMediaPhoto, types.MessageMediaDocument])):
             await send_content(event)
 
@@ -50,7 +48,7 @@ async def handle_message(event: events.NewMessage.Event):
         logging.error(f"Error al comunicar con la API: {e}")
         await event.respond("Lo siento, hubo un error al procesar tu solicitud. Por favor, inténtalo de nuevo más tarde.")
 
-async def handle_file(name:str, list_of_files: list):
+async def handle_file(event, name:str, list_of_files: list):
     file_path: str = await client.download_media(event.message, f"data/{name}") # type: ignore
     content_type, _ = mimetypes.guess_type(file_path)
     if not content_type:
@@ -71,7 +69,7 @@ async def send_content(event: events.NewMessage.Event):
                     file_name = f"{secrets.token_hex(8)}.ogg"
                     event.message.message = "User sent an audio file. Your purpose is to reply to him."
 
-                await handle_file(file_name, files)
+                await handle_file(event, file_name, files)
             except Exception as e:
                 logging.error(f"Error downloading media: {e}")
                 await event.respond("Sorry, there was an error downloading the file.")
@@ -82,21 +80,15 @@ async def send_content(event: events.NewMessage.Event):
     }
 
     try:
+        mp_encoder = requests_toolbelt.MultipartEncoder(fields={file[0]: (file[1][0], file[1][1], file[1][2]) for file in files})
         if transcription_modes.get(user_id, False) and any(file[1][2].startswith('audio') for file in files):
             logger.info('Transcribing audio file...')
-            url = f"{API_BASE_URL}/transcribe"
-            mp_encoder = requests_toolbelt.MultipartEncoder(fields={file[0]: (file[1][0], file[1][1], file[1][2]) for file in files})
-            response = requests.post(url, data=mp_encoder, headers={'Content-Type': mp_encoder.content_type})
-            response.raise_for_status()
-            logger.info(response.content)
-            await event.respond(response.text)
+            response = await transcribe(mp_encoder)
         else:
-            url = f"{API_BASE_URL}/talk/content"
-            mp_encoder = requests_toolbelt.MultipartEncoder(fields={file[0]: (file[1][0], file[1][1], file[1][2]) for file in files})
-            response = requests.post(url, params=params, data=mp_encoder, headers={'Content-Type': mp_encoder.content_type})
-            response.raise_for_status()
-            logger.info(response.content)
-            await event.respond(response.text)
+            response = await talk_content(params, mp_encoder)
+        response.raise_for_status()
+        logger.info(response.content)
+        await event.respond(response.text)
         return
     except requests.exceptions.RequestException as e:
         logging.error(f"API Error: {e}")
@@ -104,6 +96,14 @@ async def send_content(event: events.NewMessage.Event):
     finally:
         for file in files:
             file[1][1].close()
+
+async def talk_content(params, mp_encoder):
+    url = f"{API_BASE_URL}" + '/talk/content'
+    return requests.post(url, params=params, data=mp_encoder, headers={'Content-Type': mp_encoder.content_type})
+
+async def transcribe(mp_encoder):
+    url = f"{API_BASE_URL}" + '/transcribe'
+    return requests.post(url, data=mp_encoder, headers={'Content-Type': mp_encoder.content_type})
 
 async def talk(event: events.NewMessage.Event):
     """Envía el mensaje del usuario a la API Orion y devuelve la respuesta."""
